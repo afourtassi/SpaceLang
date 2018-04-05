@@ -1,0 +1,148 @@
+var Id = function(position, rotation){
+  return {x:position.x, y:position.y};
+};
+
+//this reflection is for front/back
+var Ref = function(position, rotation){
+  return {x:-position.x, y:-position.y};
+};
+
+//define rotation in general
+////////////////////////////
+
+var Rot = function(position, rotation){
+  var theta = rotation
+  var theta_rad = theta * Math.PI * 1/180
+  var rot_x= position.x*Math.cos(theta_rad)-position.y*Math.sin(theta_rad);
+  var rot_y= position.x*Math.sin(theta_rad)+position.y*Math.cos(theta_rad);
+
+  return {x:Math.round(rot_x), y:Math.round(rot_y)};
+};
+
+//define rotation for side (left-right)
+var Rot_side = function(position, rotation){
+  return Rot(position, 90)
+}
+
+//This rotation is for non-egocentric frame of reference 
+var Rot_allo = function(position, rotation){
+  return Rot(position, rotation)
+}
+
+//define composition 
+var Comp = function (opr1, opr2){
+  return function (position, rotation){
+    opr1(opr2(position, rotation),rotation)
+  }
+}
+
+//So we are learning 4 words: both front/back, left/right, and we have 8 hypotheses
+
+var hyp_space = [ //{name:'id', operation:Id, len:1}, // front
+                  //{name:'ref', operation:Ref, len:1}, // back
+                 
+                  {name:'rotSide_id', operation:Comp(Rot_side,Id), len:2}, //left ego
+                  {name:'rotSide_ref', operation:Comp(Rot_side,Ref), len:2}, // right ego
+
+                  {name:'rotSide_id_bis', operation:Comp(Rot_side,Id), len:2}, //left ego
+                  //{name:'rotSide_ref_bis', operation:Comp(Rot_side,Ref), len:2}, // right ego
+                 
+                  //{name:'rotFrame_id', operation:Comp(Rot_allo,Id), len:2}, //front allo
+                  //{name:'rotFrame_ref', operation:Comp(Rot_allo,Ref), len:2}, // right allo
+                 
+                  {name:'rotFrame_Side_id', operation:Comp(Rot_allo, Comp(Rot_side, Id)), len:3}, //left allo
+                  {name:'rotFrame_Side_ref', operation:Comp(Rot_allo, Comp(Rot_side, Ref)), len:3} //right allo
+
+ 
+                ]
+
+
+var hyp_names  =  map(function(hyp){
+return hyp.name
+}, hyp_space)
+
+var positions = [
+                 {x:-1,y:0},
+                 {x:1,y:0}
+                  ];
+
+var utterances = ['left',
+                  'right'
+                 ];
+
+var rotations = [0,
+                180];
+
+var utterancePrior = Categorical({vs: utterances, ps: [1/2, 1/2]});
+var positionPrior =  Categorical({vs: positions, ps: [1/2, 1/2]});
+var rotationPrior =  Categorical({vs: rotations, ps: [1/2, 1/2]});
+
+//Every word (e.g., 'left' , 'right') has a probability distribution over all hypotheses 
+var lexiconPrior = Infer({method:'enumerate'}, function(){
+  //Now associate every word with a probability distribution over the space
+      var meanings = map(function(word) {
+        var probs = map(function(hyp){ //generate a discretized dirichlet
+          return uniformDraw([0.01, 0.5, 0.99]);
+        }, hyp_space)
+        return _.object(hyp_names, probs);
+      }, utterances);
+      return _.object(utterances, meanings);
+    })
+
+//Egocentric Meaning: returns true if the word maps to the correct position  
+var meaning = function(utt, position, rotation) {
+    var rot_position = Rot(position, -rotation)
+    return utt=='front'? (rot_position.x==0 && rot_position.y==1):
+    utt=='back'? (rot_position.x==0 && rot_position.y==-1):
+    utt=='left'? (rot_position.x==-1 && rot_position.y==0):
+    utt=='right'? (rot_position.x==1 && rot_position.y==0):
+    true
+};
+
+//Speaker: has in mind a position, and utter the corresponding word based on rotation 
+var S = cache(function(position, rotation) {
+  return Infer({method:'enumerate'}, function(){
+    var utt = sample(utterancePrior);
+    condition(meaning(utt, position, rotation));
+    return utt;
+  });
+});
+
+var alpha=7
+var beta =25.8
+
+//Listner: hears a word, sees a rotation and try to associate it with a meaning from the space
+var L1 = function(trueRotation, utt, lexicon) {
+  return Infer({method:'enumerate'}, function(){
+    var rep = uniformDraw(hyp_space); //sample a representation
+    var rep_opr = rep.operation
+    var response =  rep_opr({x:0,y:1}, trueRotation) 
+    factor(alpha*lexicon[utt][rep.name]
+           -beta*rep.len)
+    return [response.x, response.y]
+  });
+};
+
+var data = training
+
+var lexiconPost = function(data) {
+  //return Infer({method: 'MCMC', samples: 2000, onlyMAP : true, burn: 500, verbose: true}, function() {
+  return Infer({method : 'enumerate'}, function() {
+    var lexicon = sample(lexiconPrior);
+    mapData({data: data}, function(datum){
+      observe(L1(datum.rot, datum.word, lexicon), [datum.x, datum.y])
+    });
+    return lexicon;
+  });
+};
+
+
+
+var model =  function () {
+  var data = training
+  var lexicon = lexiconPost(data)
+  return lexicon
+};
+
+
+model()

@@ -1,0 +1,190 @@
+var Id = function(position, rotation){
+  return {x:position.x, y:position.y};
+};
+
+//this reflection is for front/back
+var Ref = function(position, rotation){
+  return {x:-position.x, y:-position.y};
+};
+
+//define rotation in general
+////////////////////////////
+
+var Rot = function(position, rotation){
+  var theta = rotation
+  var theta_rad = theta * Math.PI * 1/180
+  var rot_x= position.x*Math.cos(theta_rad)-position.y*Math.sin(theta_rad);
+  var rot_y= position.x*Math.sin(theta_rad)+position.y*Math.cos(theta_rad);
+
+  return {x:Math.round(rot_x), y:Math.round(rot_y)};
+};
+
+//define rotation for side (left-right)
+var Rot_side = function(position, rotation){
+  return Rot(position, 90)
+}
+
+//This rotation is for non-egocentric frame of reference 
+var Rot_allo = function(position, rotation){
+  return Rot(position, rotation)
+}
+
+//define composition 
+var Comp = function (opr1, opr2){
+  return function (position, rotation){
+    opr1(opr2(position, rotation),rotation)
+  }
+}
+
+//So we are learning 4 words: both front/back, left/right, and we have 8 hypotheses
+
+var hyp_space = [ {name:'id', operation:Id, len:1}, // front
+                  {name:'ref', operation:Ref, len:1}, // back
+                 
+                  {name:'rotSide_id', operation:Comp(Rot_side,Id), len:2}, //left ego
+                  {name:'rotSide_ref', operation:Comp(Rot_side,Ref), len:2}, // right ego
+                 
+                  {name:'rotFrame_id', operation:Comp(Rot_allo,Id), len:3}, //front allo
+                  {name:'rotFrame_ref', operation:Comp(Rot_allo,Ref), len:3}, // right allo
+                 
+                  {name:'rotFrame_Side_id', operation:Comp(Rot_allo, Comp(Rot_side, Id)), len:8}, //left allo
+                  {name:'rotFrame_Side_ref', operation:Comp(Rot_allo, Comp(Rot_side, Ref)), len:8} //right allo
+
+ 
+                ]
+
+
+var hyp_names  =  map(function(hyp){
+return hyp.name
+}, hyp_space)
+
+var positions = [
+                 {x:-1,y:0},
+                 {x:1, y:0},
+                 {x:0, y:1},
+                 {x:0, y:-1}
+                  ];
+
+var utterances = ['left',
+                  'right',
+                  'front',
+                  'back'
+                 ];
+
+var rotations = [0,
+                 90,
+                180,
+                270];
+
+var utterancePrior = Categorical({vs: utterances, ps: [1/4, 1/4, 1/4, 1/4]});
+var positionPrior =  Categorical({vs: positions, ps: [1/4, 1/4, 1/4, 1/4]});
+var rotationPrior =  Categorical({vs: rotations, ps: [1/4, 1/4, 1/4, 1/4]});
+
+//Every word (e.g., 'left' , 'right') has a probability distribution over all hypotheses 
+// have a different prioir for each word and each hypothesis
+//let's first try different infernce for each word 
+
+var wordPrior = function(word) { 
+  return Infer({method:'enumerate'}, function(){
+  //Now associate every word with a probability distribution over the space
+    var probs = map(function(hyp){ //generate a discretized dirichlet
+      return uniformDraw([0.01, 0.5,  0.99]);
+    }, hyp_space)
+    
+    return _.object(hyp_names, probs);
+})
+}
+
+var lexiconPrior =  function() {
+      var meanings = map(function(word) {
+        return sample(wordPrior(word))
+      }, utterances);
+      return _.object(utterances, meanings);
+ }
+    
+//Egocentric Meaning: returns true if the word maps to the correct position  
+var meaning = function(utt, position, rotation) {
+    var rot_position = Rot(position, -rotation)
+    return utt=='front'? (rot_position.x==0 && rot_position.y==1):
+    utt=='back'? (rot_position.x==0 && rot_position.y==-1):
+    utt=='left'? (rot_position.x==-1 && rot_position.y==0):
+    utt=='right'? (rot_position.x==1 && rot_position.y==0):
+    true
+};
+
+//Speaker: has in mind a position, and utter the corresponding word based on rotation 
+var S = cache(function(position, rotation) {
+  return Infer({method:'enumerate'}, function(){
+    var utt = sample(utterancePrior);
+    condition(meaning(utt, position, rotation));
+    return utt;
+  });
+});
+
+var data = input  
+
+var alpha=data[0].alpha
+var beta=data[0].beta
+
+
+//Listner: hears a word, sees a rotation and try to associate it with a meaning from the space
+
+//Do a conditional (if the word is the same )
+var L1 = function(trueRotation, word) {
+  return Infer({method:'enumerate'}, function(){
+    var rep = uniformDraw(hyp_space); //sample a representation
+    var rep_opr = rep.operation
+    var response =  rep_opr({x:0,y:1}, trueRotation) 
+    factor(alpha*word[rep.name]
+           -beta*rep.len)
+    return [response.x, response.y]
+  });
+};
+
+//data looks like {}
+
+var wordPost = function(word, data) {
+  return Infer({method : 'enumerate'}, function() {
+    var wordDist = sample(wordPrior(word));
+    mapData({data: data}, function(datum){
+      if (datum.word == word) {observe(L1(datum.rot, wordDist), [datum.x, datum.y])}
+    });
+    return wordDist;
+  });
+};
+
+
+
+//model()
+var learnData = function(size) {
+  
+  var step = function(data) {
+    if(data.length == size) return data;
+    
+    var position = sample(positionPrior)
+    var rotation = sample(rotationPrior)
+    var utt = sample(S(position, rotation))
+    
+    var newDatum = {x: position.x, y: position.y, rot: rotation, word: utt}
+  
+  return  step(data.concat(newDatum));
+    
+  }
+  
+    step([]);
+}
+
+
+
+
+var model =  function () {
+  //var data = learnData(5)
+  var words = map(function(w){ 
+      return wordPost(w, data).MAP().val;
+    }, utterances)
+  return _.object(utterances, words);
+};
+
+model()
+//sample(wordPrior('left'))
+//sample(lexiconPrior)

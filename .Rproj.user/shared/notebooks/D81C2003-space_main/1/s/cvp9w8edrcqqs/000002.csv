@@ -1,0 +1,167 @@
+"0","  library(purrr)"
+"0","  library(readr)"
+"0","  library(ggplot2)"
+"0","  library(langcog)"
+"2","
+Attaching package: ‘langcog’
+
+"
+"2","The following objects are masked _by_ ‘.GlobalEnv’:
+
+    ci_lower, ci_upper
+
+"
+"2","The following object is masked from ‘package:base’:
+
+    scale
+
+"
+"0","  library(boot)"
+"0","#  library(lazyeval)"
+"0","  library(dplyr)"
+"2","
+Attaching package: ‘dplyr’
+
+"
+"2","The following object is masked _by_ ‘.GlobalEnv’:
+
+    combine
+
+"
+"2","The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+"
+"0","  library(tidyr)"
+"0","  library(wordbankr)"
+"0","  library(directlabels)"
+"0"," # library(scales)"
+"0","  library(stringr)"
+"2","
+Attaching package: ‘stringr’
+
+"
+"2","The following object is masked _by_ ‘.GlobalEnv’:
+
+    words
+
+"
+"0","  library(lmtest)"
+"2","Loading required package: zoo
+"
+"2","
+Attaching package: ‘zoo’
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    as.Date, as.Date.numeric
+
+"
+"0","  library(rwebppl)"
+"2","local webppl exists: v0.9.6 /usr/local/lib/node_modules/webppl
+"
+"0","  library(jsonlite)"
+"2","
+Attaching package: ‘jsonlite’
+
+"
+"2","The following object is masked from ‘package:purrr’:
+
+    flatten
+
+"
+"0","  library(nlme)"
+"2","
+Attaching package: ‘nlme’
+
+"
+"2","The following object is masked from ‘package:directlabels’:
+
+    gapply
+
+"
+"2","The following object is masked from ‘package:dplyr’:
+
+    collapse
+
+"
+"0","  library(feather)"
+"0","  library(broom)"
+"0","  library(HDInterval)"
+"0","  library(BBmisc)"
+"2","
+Attaching package: ‘BBmisc’
+
+"
+"2","The following object is masked from ‘package:nlme’:
+
+    collapse
+
+"
+"2","The following objects are masked from ‘package:dplyr’:
+
+    coalesce, collapse
+
+"
+"0","  library(data.table)"
+"2","data.table 1.10.4
+"
+"2","**********
+This installation of data.table has not detected OpenMP support. It will still work but in single-threaded mode. If this a Mac and you obtained the Mac binary of data.table from CRAN, CRAN's Mac does not yet support OpenMP. In the meantime please follow our Mac installation instructions on the data.table homepage. If it works and you observe benefits from multiple threads as others have reported, please convince Simon Ubanek by sending him evidence and ask him to turn on OpenMP support when CRAN builds package binaries for Mac. Alternatives are to install Ubuntu on your Mac (which I have done and works well) or use Windows where OpenMP is supported and works well.
+**********
+"
+"2","  The fastest way to learn (by data.table authors): https://www.datacamp.com/courses/data-analysis-the-data-table-way
+"
+"2","  Documentation: ?data.table, example(data.table) and browseVignettes(""data.table"")
+"
+"2","  Release notes, videos and slides: http://r-datatable.com
+"
+"2","
+Attaching package: ‘data.table’
+
+"
+"2","The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+"
+"2","The following object is masked from ‘package:purrr’:
+
+    transpose
+
+"
+"0","  library(plyr)"
+"2","------------------------------------------------------------------------------------------------------------------------------------------
+"
+"2","You have loaded plyr after dplyr - this is likely to cause problems.
+If you need functions from both plyr and dplyr, please load plyr first, then dplyr:
+library(plyr); library(dplyr)
+"
+"2","------------------------------------------------------------------------------------------------------------------------------------------
+"
+"2","
+Attaching package: ‘plyr’
+
+"
+"2","The following object is masked _by_ ‘.GlobalEnv’:
+
+    rename
+
+"
+"2","The following objects are masked from ‘package:dplyr’:
+
+    arrange, count, desc, failwith, id, mutate, rename, summarise, summarize
+
+"
+"2","The following object is masked from ‘package:purrr’:
+
+    compact
+
+"
